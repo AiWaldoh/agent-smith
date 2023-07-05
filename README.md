@@ -42,6 +42,7 @@ sudo visudo
 ```
 Add all approved apps to the bottom of the file or install them manually
 ```
-username ALL=(ALL) NOPASSWD: /usr/bin/apt-get install dirb, /usr/bin/apt-get install nmap, /usr/bin/apt-get install dirbuster
+username ALL=(ALL) NOPASSWD: /usr/bin/apt-get install dirb, /usr/bin/apt-get install nmap, /usr/bin/apt-get install dirbuster, /usr/sbin/openvpn
+
 ```
 
