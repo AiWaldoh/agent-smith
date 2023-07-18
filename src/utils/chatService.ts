@@ -6,6 +6,10 @@ import {
 } from 'langchain/schema'
 
 export class ChatService {
+    async getNextSteps(taskSummary: string): Promise<string> {
+        throw new Error('Method not implemented.')
+    }
+
     private chat: ChatOpenAI
     private messages: (HumanChatMessage | SystemChatMessage | AIChatMessage)[]
     private systemMessage: SystemChatMessage
@@ -24,7 +28,9 @@ export class ChatService {
         this.systemMessage = new SystemChatMessage(systemMessage)
         this.messages = [this.systemMessage]
     }
-
+    async decomposeTask(task: string): Promise<string[]> {
+        throw new Error('Method not implemented.');
+    }
     async addMessage(message: string): Promise<void> {
         this.messages.push(new HumanChatMessage(message))
     }

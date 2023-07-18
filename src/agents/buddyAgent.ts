@@ -15,8 +15,8 @@ export class BuddyAgent {
         this.chatService = chatService;
     }
 
-    async receiveTask(id: number, task: string, maxRetries = 3) {
-        console.log(`in receive task on Buddy!`);
+    async receiveTask(id: number, task: string, taskType: string, port: number, maxRetries = 3) {
+        // console.log(`in receive task on Buddy!`);
         let originalCommand = task; // Store original command
         let command = task;
         let retryCount = 0;
@@ -25,7 +25,7 @@ export class BuddyAgent {
             if (retryCount === 0) {
                 // Call ChatService to transform the verbal command to an executable command. use gpt4 or functions?
                 const prompt_template = "convert the following verbal command to a single line linux command in this format {'command':'[linux command here]}";
-                console.log(`sending command to chatgpt: ${command}`);
+                // console.log(`sending command to chatgpt: ${command}`);
                 await this.chatService.addMessage(prompt_template)
                 await this.chatService.addMessage(command);
                 const aiMessage = await this.chatService.sendMessage();
@@ -35,15 +35,17 @@ export class BuddyAgent {
                 }
                 command = JSON.parse(aiMessage).command
                 originalCommand = command
-                console.log(`#1# linux command received ${command}`);
+                // console.log(`#1# linux command received ${command}`);
             }
 
 
-            console.log(`running command ${command}`);
+            //EXECUTE LINUX CLI COMMAND HERE
+            // console.log(`running command `);
+            //console.log(command);
             const commandStatus = await this.executorAgent.executeTask(command);
-            console.log(`#2# command results ${commandStatus.status} ${commandStatus.message}`);
+            // console.log(`#2# command results ${commandStatus.status} ${commandStatus.message}`);
             const status = commandStatus.status
-            console.log(`STATUS: ${status}`);
+            // console.log(`STATUS: ${status}`);
             // retry command if it failed
             if (status === "error") {
                 // Ask ChatService for an alternative command
@@ -58,21 +60,22 @@ export class BuddyAgent {
                 errorMessages.push(errorMessage);
                 retryCount++;
             } else if (status === "success") {
-                console.log(`comparing commands`);
+                // console.log(`comparing commands`);
 
                 if (command !== originalCommand) {
                     command = originalCommand;
                     retryCount = 0;
                 } else {
+                    console.log(`command executed successfully: ${command}`);
                     // Original command succeeded, pass the result to MiddleAgent and exit the loop
-                    this.middleAgent.receiveResult(id, commandStatus.message);
+                    this.middleAgent.receiveResult(id, commandStatus.message, taskType, port);
                     return;
                 }
             }
         }
 
         // All retries failed, send the error messages to MiddleAgent
-        this.middleAgent.receiveResult(id, JSON.stringify({ status: "error", messages: errorMessages }));
+        this.middleAgent.receiveResult(id, JSON.stringify({ status: "error", messages: errorMessages }), taskType, port);
     }
 }
 
