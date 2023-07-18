@@ -2,6 +2,7 @@ import { MiddleAgent } from './middleAgent'
 import { ChatService } from '../utils/chatService'
 import { ExecutorAgent } from './executorAgent'
 import { Utils } from '../utils/utils'
+import colors from 'colors';
 
 
 export class BuddyAgent {
@@ -25,10 +26,11 @@ export class BuddyAgent {
             if (retryCount === 0) {
                 // Call ChatService to transform the verbal command to an executable command. use gpt4 or functions?
                 const prompt_template = "convert the following verbal command to a single line linux command in this format {'command':'[linux command here]}";
-                // console.log(`sending command to chatgpt: ${command}`);
+                console.log(`converting verbal command to json... please wait...`);
                 await this.chatService.addMessage(prompt_template)
                 await this.chatService.addMessage(command);
                 const aiMessage = await this.chatService.sendMessage();
+                console.log(`command converted to the following json ${aiMessage}`);
                 if (!Utils.isValidJson(aiMessage)) {
                     console.log(`invalid json received :(`);
                     return { error: 'Invalid JSON when converting verbal command to an executable command' };
@@ -48,6 +50,7 @@ export class BuddyAgent {
             // console.log(`STATUS: ${status}`);
             // retry command if it failed
             if (status === "error") {
+                console.log(colors.bgRed('COMMAND FAILED. GOING TO ATTEMPT ALTERNATIVE WAY'));
                 // Ask ChatService for an alternative command
                 const errorMessage = commandStatus.message; //JSON.parse(aiResultMessage).message
                 await this.chatService.addMessage(`The execution of the command resulted in an error: ${errorMessage}. What command should I try next? If installing, specify sudo and -y flag. Answer in this format {'command':'[linux command here]'}`);
@@ -56,17 +59,18 @@ export class BuddyAgent {
                     return { error: 'Invalid JSON when reading execution cli results' };
                 }
                 command = JSON.parse(newCommand).command
-                console.log(`going to try new command ${command}`);
+                console.log(colors.bgRed(`going to try new command ${command}`));
                 errorMessages.push(errorMessage);
                 retryCount++;
             } else if (status === "success") {
                 // console.log(`comparing commands`);
 
                 if (command !== originalCommand) {
+                    console.log('alternative command was successful. Going to retry original command now.');
                     command = originalCommand;
                     retryCount = 0;
                 } else {
-                    console.log(`command executed successfully: ${command}`);
+                    console.log(colors.bgGreen(`command executed successfully: ${command}`));
                     // Original command succeeded, pass the result to MiddleAgent and exit the loop
                     this.middleAgent.receiveResult(id, commandStatus.message, taskType, port);
                     return;

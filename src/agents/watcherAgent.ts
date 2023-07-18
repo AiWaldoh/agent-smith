@@ -29,8 +29,7 @@ export class WatcherAgent extends EventEmitter {
         return id;
     }
 
-
-    async completeTask(id: number, summary: string) {
+    async completeTask(id: number, result: string, port: number) {
         let taskList = await this.db.getData();
         if (!taskList) {
             taskList = {};
@@ -39,25 +38,15 @@ export class WatcherAgent extends EventEmitter {
             taskList[id].status = 'COMPLETE';
             await this.db.setData(taskList);
         }
-        this.emit('taskStatusComplete', { id, summary, taskType: taskList[id].taskType });
-    }
+        let summary = result;
+        // console.log(`emitting!`);
+        this.emit('taskComplete', { id, summary, port, taskType: taskList[id].taskType });
 
-    async completeSubtask(id: number, result: string, port: number) {
-        let taskList = await this.db.getData();
-        if (!taskList) {
-            taskList = {};
-        }
-        if (taskList[id]) {
-            taskList[id].status = 'COMPLETE';
-            await this.db.setData(taskList);
-        }
-        this.emit('subtaskComplete', { id, result, port });
     }
 
     async sendTaskToBuddy(buddyAgent: BuddyAgent, task: string, taskType: string, port: number) {
         const id = await this.generateTask(task, taskType);
-
-        // console.log(`calling receiveTask from Watcher to Buddy!`);
+        console.log(`task id ${id} generated for command ${task}`);
         await buddyAgent.receiveTask(id, task, taskType, port);
     }
 }

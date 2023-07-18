@@ -42,21 +42,13 @@ export class ExecutorAgent {
             const fileName = `data/cmd-result-${Date.now()}.json`;
             let result;
 
-            // If an error message is present, return it
-            if (stderr) {
-                result = {
-                    status: 'error',
-                    message: stderr,
-                    fileName
-                };
-            } else {
-                // Return successful output
-                result = {
-                    status: 'success',
-                    message: stdout,
-                    fileName
-                };
-            }
+            // Return successful output
+            result = {
+                status: stderr ? 'error' : 'success',
+                message: stdout,
+                error: stderr,  // include stderr as additional information
+                fileName
+            };
 
             await writeFile(fileName, JSON.stringify(result), 'utf-8');
 
@@ -67,6 +59,7 @@ export class ExecutorAgent {
             const result = {
                 status: 'error',
                 message: error.stderr ? error.stderr : error.message,
+                code: error.code,  // include the error code
                 fileName
             };
 
@@ -75,5 +68,6 @@ export class ExecutorAgent {
             return result;
         }
     }
+
 }
 

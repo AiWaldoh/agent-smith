@@ -15,7 +15,7 @@ export class MiddleAgent {
 
         if (!Utils.isValidJson(result)) {
             //console.log(`not valid json so summarizing to chatgpt ${result}`);
-            const prompt_template = `You are doing a pen-test. format the following cli output so it look like notes. example: {message: <important information here>}`
+            const prompt_template = `You are an ethical hacker doing a pen-test. You will summarize the following cli output while keeping every important detail . example: {message: '<important pentest information here>'}`
             this.chatService.addMessage(prompt_template);
             this.chatService.addMessage(result);
             result = await this.chatService.sendMessage();

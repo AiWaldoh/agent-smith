@@ -27,13 +27,9 @@ export class MemoryAgent {
             fileData[id] = { data, taskType };
 
             await this.db.setData(fileData);
-            // console.log(`summary saved to memory!`);
 
-            if (taskType === 'subtask') {
-                this.watcherAgent.completeSubtask(id, data, port);
-            } else {
-                this.watcherAgent.completeTask(id, data);
-            }
+            this.watcherAgent.completeTask(id, data, port);
+
         } catch (error) {
             console.error(`Failed to save data: ${error}`);
         }
