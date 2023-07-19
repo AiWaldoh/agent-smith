@@ -13,7 +13,7 @@ export class SummarizerAgent {
 
     async receiveResult(id: number, result: string, taskType: string, port: number) {
         if (!Utils.isValidJson(result)) {
-            const prompt_template = `You are an ethical hacker doing a pen-test. You will summarize the following cli output while keeping every important detail. example: {message: '<important pentest information here>'}`
+            const prompt_template = `You are an ethical hacker doing a pen-test. You will summarize the following cli output with important details. example: {message: '<important pentest information here>'}`
             this.chatService.addMessage(prompt_template);
             this.chatService.addMessage(result);
             result = await this.chatService.sendMessage();

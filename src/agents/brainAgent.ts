@@ -94,14 +94,22 @@ export class BrainAgent extends EventEmitter {
                     //get 3 tasks for port from chatgpt
                     const tasksAmount: number = 3;
                     let tasks = await this.getTasksForPort(port, tasksAmount);
-
+                    // console.log(tasks);
                     //save subtasks to map
                     this.subtasksMap.set(port, tasks.map(taskObject => taskObject.task));
+                    // console.log(this.subtasksMap);
                     //execute first sub task
                     if (tasks.length > 0) {
                         const firstTask = tasks[0].task;
-                        console.log(colors.bgMagenta(`executing subtask ${firstTask}`));
-                        this.dispatchTask(portAgent, firstTask, port);
+
+                        await this.dispatchTask(portAgent, firstTask, port);
+
+                        // Remove first task after dispatching
+                        let subtasks = this.subtasksMap.get(port);
+                        if (subtasks) {
+                            subtasks = subtasks.filter(task => task !== firstTask);
+                            this.subtasksMap.set(port, subtasks);
+                        }
                     }
                 }
             }
@@ -113,9 +121,19 @@ export class BrainAgent extends EventEmitter {
             //determine what task to run next
             const nextSubtask = this.getNextSubtask(portNumber);
 
+
             if (nextSubtask) {
+                console.log('');
                 console.log(colors.magenta(`Executing next task: ${nextSubtask}`));
-                this.dispatchTask(portAgent, nextSubtask, portNumber);
+                // Remove the task from the subtasksMap before dispatching it
+                let subtasks = this.subtasksMap.get(portNumber);
+                if (subtasks) {
+                    subtasks = subtasks.filter(task => task !== nextSubtask);
+                    this.subtasksMap.set(portNumber, subtasks);
+                }
+                // Now dispatch the task
+                await this.dispatchTask(portAgent, nextSubtask, portNumber);
+
             } else {
                 console.log(`All subtasks for port ${portNumber} are complete.`);
             }
@@ -140,68 +158,60 @@ export class BrainAgent extends EventEmitter {
 
     //first time nmap runs use this to get initial tasks
     private async getTasksForPort(port: number, taskAmount: number): Promise<{ task: string }[]> {
-        if (port === 22) {
-            return JSON.parse(`{
-                "tasks": [
-                  {"task": "Perform a banner grab on port 22 to determine the SSH version"},
-                  {"task": "Attempt to brute force the SSH login using a tool like Hydra"},
-                  {"task": "Check for any known vulnerabilities associated with the determined SSH version"}
-                ]
-              }`).tasks;
-        } else if (port === 80) {
-            return JSON.parse(`{
-                "tasks": [
-                  {
-                    "task": "Perform a HTTP GET request to check for web server details and potential vulnerabilities"
-                  },
-                  {
-                    "task": "Use a tool like Nikto for automated vulnerability scanning"
-                  },
-                  {
-                    "task": "Attempt directory traversal using tools like DirBuster or DirSearch to find hidden directories or files"
-                  }
-                ]
-              }`).tasks;
-        } else if (port === 443) {
-            return JSON.parse(`{
-                "tasks": [
-                  {
-                    "task": "Perform an SSL/TLS scan using tools like openssl or sslyze to identify the SSL version and cipher suite"
-                  },
-                  {
-                    "task": "Check for Heartbleed vulnerability if OpenSSL version is detected"
-                  },
-                  {
-                    "task": "Use a tool like Nikto for automated vulnerability scanning on the HTTPS service"
-                  }
-                ]
-              }`).tasks;
-        } else {
-            return JSON.parse(`{
-                "tasks": [
-                  {"task": "Perform a banner grab on port 22 to determine the SSH version"}
-                ]
-              }`).tasks;
-        }
+        // console.log(`calling GET TASK FOR PORT`);
+        // if (port === 22) {
+        //     return JSON.parse(`{
+        //         "tasks": [
+        //           {"task": "Perform a banner grab on port 22 to determine the SSH version"},
+        //           {"task": "Check for any known vulnerabilities associated with the determined SSH version"}
+        //         ]
+        //       }`).tasks;
+        // } else if (port === 80) {
+        //     return JSON.parse(`{
+        //         "tasks": [
+        //           {
+        //             "task": "Perform a HTTP GET request to check for web server details and potential vulnerabilities"
+        //           }
+        //         ]
+        //       }`).tasks;
+        // } else if (port === 443) {
+        //     return JSON.parse(`{
+        //         "tasks": [
+        //           {
+        //             "task": "Perform an SSL/TLS scan using tools like openssl or sslyze to identify the SSL version and cipher suite"
+        //           },
+        //           {
+        //             "task": "Check for Heartbleed vulnerability if OpenSSL version is detected"
+        //           }
+        //         ]
+        //       }`).tasks;
+        // } else {
+        //     return JSON.parse(`{
+        //         "tasks": [
+        //           {"task": "Perform a banner grab on port 22 to determine the SSH version"}
+        //         ]
+        //       }`).tasks;
+        // }
 
-        // let tasksJson = await this.getTasksFromAPI(`You are an ethical hacker doing the recon phase during a pentest. you just found port ${port} open. give me ${taskAmount} tasks that I should do for ip ${this.ip} on port ${port}. Example: {tasks: [{task}, {task}, {task}]}.`);
-        // console.log(tasksJson);
-        // let tasks = JSON.parse(tasksJson).tasks;
-        // return tasks;
+        let tasksJson = await this.getTasksFromAPI(`You are an ethical hacker doing the recon phase during a pentest. you just found port ${port} open. give me ${taskAmount} tasks that I should do for ip ${this.ip} on port ${port}. Example: {tasks: [{task}, {task}, {task}]}.`);
+        console.log(tasksJson);
+        let tasks = JSON.parse(tasksJson).tasks;
+        return tasks;
     }
 
     //add AI logic here to make getting next sub task more involved by looking at big picture and current progress
     getNextSubtask(port: number): string | undefined {
-        // Get the array of subtasks for this port
         let subtasks = this.subtasksMap.get(port);
+        console.log(port, subtasks);
         if (subtasks && subtasks.length > 0) {
-            // Remove the first subtask from the array and return it
-            return subtasks.shift();
+            const nextTask = subtasks[0];  // Just take the first task
+            return nextTask;
         } else {
-            // No more subtasks for this port
             return undefined;
         }
     }
+
+
 
     get ip(): string {
         return this._ip;

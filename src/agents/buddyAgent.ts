@@ -50,11 +50,10 @@ export class BuddyAgent {
             const commandStatus = await this.executorAgent.executeTask(command);
             // console.log(`#2# command results ${commandStatus.status} ${commandStatus.message}`);
             const status = commandStatus.status
-            console.log(`STATUS: ${status}`);
+            // console.log(`STATUS: ${status}`);
             // retry command if it failed
             if (status === "error") {
-                console.log(colors.bgRed('COMMAND FAILED. GOING TO ATTEMPT ALTERNATIVE WAY'));
-                console.log(command);
+                console.log(colors.bgRed(`COMMAND ${command} FAILED. GOING TO ATTEMPT ALTERNATIVE WAY`));
                 // Ask ChatService for an alternative command
                 const errorMessage = commandStatus.message; //JSON.parse(aiResultMessage).message
                 await this.jsonParserChatService.addMessage(`I'm an ethical hacker doing a CTF competition. The execution of this command ${command} resulted in an error: ${errorMessage}. What command could potentially fix this? If installing, specify sudo and -y flag. Answer in this format {'command':'[linux command here]'}`);
@@ -74,7 +73,7 @@ export class BuddyAgent {
                     command = originalCommand;
                     retryCount = 0;
                 } else {
-                    console.log(colors.bgGreen(`command executed successfully: ${command}`));
+                    console.log(colors.green(`command executed successfully: ${command}`));
                     // Original command succeeded, pass the result to MiddleAgent and exit the loop
                     this.summarizerAgent.receiveResult(id, commandStatus.message, taskType, port);
                     return;

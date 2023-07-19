@@ -12,6 +12,17 @@ export class ExecutorAgent {
             if (command.includes('apt-get install')) {
                 command = `DEBIAN_FRONTEND=noninteractive ${command}`;
             }
+
+            const isOpensslCommand = command.startsWith('openssl s_client -connect');
+            if (isOpensslCommand) {
+                command = `echo "Q" | ${command}`;
+            }
+
+            const isNetcatCommand = command.startsWith('nc');
+            if (isNetcatCommand) {
+                command = `echo | ${command}`;
+            }
+
             // Special handling for OpenVPN command
             if (command.startsWith('sudo openvpn')) {
                 return new Promise((resolve, reject) => {
@@ -41,9 +52,7 @@ export class ExecutorAgent {
             const { stdout, stderr } = await execPromisified(command);
             const fileName = `data/cmd-result-${Date.now()}.json`;
             let result;
-
-            if (stderr && (command.includes('grep') || command.startsWith('curl'))) {
-                // Special handling for grep and curl: treat no matches or any stderr as success with no output
+            if (stderr && (command.includes('grep') || command.startsWith('curl') || isOpensslCommand || isNetcatCommand)) {
                 result = {
                     status: 'success',
                     message: stdout || 'No output',
@@ -59,7 +68,6 @@ export class ExecutorAgent {
                     fileName
                 };
             }
-
             await writeFile(fileName, JSON.stringify(result), 'utf-8');
 
             return result;

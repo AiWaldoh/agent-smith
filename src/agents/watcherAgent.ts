@@ -2,6 +2,7 @@ import { FileDatabase } from '../utils/fileDatabase'
 import { BuddyAgent } from './buddyAgent'
 import { EventEmitter } from 'events';
 import { Mutex } from 'async-mutex';
+import colors from 'colors';
 
 //watcher agent orchestrates everything on the right side.
 //1. creating a new task with ID.
@@ -40,7 +41,6 @@ export class WatcherAgent extends EventEmitter {
         }
     }
 
-
     //last step before sending data to brain. parse stuff and do more stuff here
     async completeTask(id: number, result: string, port: number) {
         let taskList = await this.db.read();
@@ -52,15 +52,15 @@ export class WatcherAgent extends EventEmitter {
             await this.db.write(taskList);
         }
         let summary = result;
-        console.log(`emitting!`);
-        console.log(summary);
+
         this.emit('taskComplete', { id, summary, port, taskType: taskList[id].taskType });
 
     }
 
     async sendTaskToBuddy(buddyAgent: BuddyAgent, task: string, taskType: string, port: number, ip: string) {
         const id = await this.generateTask(task, taskType);
-        console.log(`task id ${id} generated for command ${task}`);
+        // console.log(colors.bgMagenta(`executing subtask ${firstTask}`));
+        console.log(colors.bgMagenta(`PORT: ${port} :: task id ${id} generated for command ${task}`));
         await buddyAgent.receiveTask(id, task, taskType, port, ip);
     }
 }
