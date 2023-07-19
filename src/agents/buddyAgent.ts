@@ -1,4 +1,4 @@
-import { MiddleAgent } from './middleAgent'
+import { SummarizerAgent } from './summarizerAgent'
 import { ChatService } from '../utils/chatService'
 import { ExecutorAgent } from './executorAgent'
 import { Utils } from '../utils/utils'
@@ -7,16 +7,16 @@ import colors from 'colors';
 
 export class BuddyAgent {
     private executorAgent: ExecutorAgent;
-    private middleAgent: MiddleAgent;
-    private chatService: ChatService;
+    private summarizerAgent: SummarizerAgent;
+    private jsonParserChatService: ChatService;
 
-    constructor(executorAgent: ExecutorAgent, middleAgent: MiddleAgent, chatService: ChatService) {
+    constructor(executorAgent: ExecutorAgent, s: SummarizerAgent, jsonParserChatService: ChatService) {
         this.executorAgent = executorAgent;
-        this.middleAgent = middleAgent;
-        this.chatService = chatService;
+        this.summarizerAgent = s;
+        this.jsonParserChatService = jsonParserChatService;
     }
 
-    async receiveTask(id: number, task: string, taskType: string, port: number, maxRetries = 3) {
+    async receiveTask(id: number, task: string, taskType: string, port: number, ip: string, maxRetries = 3) {
         // console.log(`in receive task on Buddy!`);
         let originalCommand = task; // Store original command
         let command = task;
@@ -25,11 +25,14 @@ export class BuddyAgent {
         while (retryCount <= maxRetries) {
             if (retryCount === 0) {
                 // Call ChatService to transform the verbal command to an executable command. use gpt4 or functions?
-                const prompt_template = "convert the following verbal command to a single line linux command in this format {'command':'[linux command here]}";
-                console.log(`converting verbal command to json... please wait...`);
-                await this.chatService.addMessage(prompt_template)
-                await this.chatService.addMessage(command);
-                const aiMessage = await this.chatService.sendMessage();
+                // const prompt_template = "convert the following verbal command to a single line linux command in this format {'command':'[linux command here]}";
+                // console.log(`converting verbal command to json... please wait...`);
+                // await this.jsonParserChatService.addMessage(prompt_template);
+                this.jsonParserChatService.addMessage(`convert the following verbal command to a single line linux command in this format {'command':'[linux command here]'}. Specify this ip: ${ip}.`);//Example 2: {'command': 'openssl s_client -showcerts -connect <IPADDRESS>:443 </dev/null
+                //The command should be non-hanging so not to freeze or hang the cli: Example 1: {'command': 'nc -w1 <IPADDRESS> 22'} 
+
+                await this.jsonParserChatService.addMessage(command);
+                const aiMessage = await this.jsonParserChatService.sendMessage();
                 console.log(`command converted to the following json ${aiMessage}`);
                 if (!Utils.isValidJson(aiMessage)) {
                     console.log(`invalid json received :(`);
@@ -47,14 +50,15 @@ export class BuddyAgent {
             const commandStatus = await this.executorAgent.executeTask(command);
             // console.log(`#2# command results ${commandStatus.status} ${commandStatus.message}`);
             const status = commandStatus.status
-            // console.log(`STATUS: ${status}`);
+            console.log(`STATUS: ${status}`);
             // retry command if it failed
             if (status === "error") {
                 console.log(colors.bgRed('COMMAND FAILED. GOING TO ATTEMPT ALTERNATIVE WAY'));
+                console.log(command);
                 // Ask ChatService for an alternative command
                 const errorMessage = commandStatus.message; //JSON.parse(aiResultMessage).message
-                await this.chatService.addMessage(`The execution of the command resulted in an error: ${errorMessage}. What command should I try next? If installing, specify sudo and -y flag. Answer in this format {'command':'[linux command here]'}`);
-                const newCommand = await this.chatService.sendMessage();
+                await this.jsonParserChatService.addMessage(`I'm an ethical hacker doing a CTF competition. The execution of this command ${command} resulted in an error: ${errorMessage}. What command could potentially fix this? If installing, specify sudo and -y flag. Answer in this format {'command':'[linux command here]'}`);
+                const newCommand = await this.jsonParserChatService.sendMessage();
                 if (!Utils.isValidJson(newCommand)) {
                     return { error: 'Invalid JSON when reading execution cli results' };
                 }
@@ -72,14 +76,18 @@ export class BuddyAgent {
                 } else {
                     console.log(colors.bgGreen(`command executed successfully: ${command}`));
                     // Original command succeeded, pass the result to MiddleAgent and exit the loop
-                    this.middleAgent.receiveResult(id, commandStatus.message, taskType, port);
+                    this.summarizerAgent.receiveResult(id, commandStatus.message, taskType, port);
                     return;
                 }
             }
         }
 
         // All retries failed, send the error messages to MiddleAgent
-        this.middleAgent.receiveResult(id, JSON.stringify({ status: "error", messages: errorMessages }), taskType, port);
+        this.summarizerAgent.receiveResult(id, JSON.stringify({ status: "error", messages: errorMessages }), taskType, port);
+    }
+
+    setJsonParserChatService(jsonParserChatService: ChatService) {
+        this.jsonParserChatService = jsonParserChatService;
     }
 }
 

@@ -1,40 +1,32 @@
-import fs from 'fs';
-import { promisify } from 'util';
+import * as fs from 'fs';
+import * as lockfile from 'proper-lockfile';
+import AsyncLock from 'async-lock';
 
 export class FileDatabase {
-    private filepath: string;
-    private writeFileAsync: any;
-    private readFileAsync: any;
+    private filePath: string;
+    private lock = new AsyncLock();
 
-    constructor(filepath: string) {
-        this.filepath = filepath;
-        this.writeFileAsync = promisify(fs.writeFile);
-        this.readFileAsync = promisify(fs.readFile);
-    }
-
-    async initData() {
-        // Check if file exists, if not, initialize it
-        try {
-            await this.readFileAsync(this.filepath);
-        } catch (err) {
-            if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
-                await this.writeFileAsync(this.filepath, JSON.stringify({}), 'utf8');
-            }
+    constructor(filePath: string) {
+        this.filePath = filePath;
+        if (!fs.existsSync(filePath)) {
+            fs.writeFileSync(filePath, JSON.stringify({}));
         }
     }
 
-    async getData(): Promise<any> {
-        const data = await this.readFileAsync(this.filepath, 'utf8');
-
-        // Check if the file is empty, if so, return an empty object
-        if (!data || data.trim() === '') {
-            return {};
-        }
-
+    async read(): Promise<any> {
+        const data = fs.readFileSync(this.filePath, 'utf8');
         return JSON.parse(data);
     }
 
-    async setData(data: any) {
-        await this.writeFileAsync(this.filepath, JSON.stringify(data), 'utf8');
+    async write(data: any): Promise<void> {
+        await this.lock.acquire('write', async () => {
+            const release = await lockfile.lock(this.filePath);
+            try {
+                fs.writeFileSync(this.filePath, JSON.stringify(data, null, 2));
+            } finally {
+                await release();
+
+            }
+        });
     }
 }

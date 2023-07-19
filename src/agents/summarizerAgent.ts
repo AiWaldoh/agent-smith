@@ -1,7 +1,8 @@
 import { ChatService } from '../utils/chatService'
 import { MemoryAgent } from './memoryAgent'
 import { Utils } from '../utils/utils'
-export class MiddleAgent {
+
+export class SummarizerAgent {
     private memoryAgent: MemoryAgent;
     private chatService: ChatService;
 
@@ -11,17 +12,12 @@ export class MiddleAgent {
     }
 
     async receiveResult(id: number, result: string, taskType: string, port: number) {
-        // console.log(`in middle agent. task id : ${id}`);
-
         if (!Utils.isValidJson(result)) {
-            //console.log(`not valid json so summarizing to chatgpt ${result}`);
-            const prompt_template = `You are an ethical hacker doing a pen-test. You will summarize the following cli output while keeping every important detail . example: {message: '<important pentest information here>'}`
+            const prompt_template = `You are an ethical hacker doing a pen-test. You will summarize the following cli output while keeping every important detail. example: {message: '<important pentest information here>'}`
             this.chatService.addMessage(prompt_template);
             this.chatService.addMessage(result);
             result = await this.chatService.sendMessage();
-            // console.log(`summary: ${result}`);
             result = JSON.parse(result).message;
-            //console.log(result);
         }
 
         this.memoryAgent.saveData(id, result, taskType, port);

@@ -42,13 +42,23 @@ export class ExecutorAgent {
             const fileName = `data/cmd-result-${Date.now()}.json`;
             let result;
 
-            // Return successful output
-            result = {
-                status: stderr ? 'error' : 'success',
-                message: stdout,
-                error: stderr,  // include stderr as additional information
-                fileName
-            };
+            if (stderr && (command.includes('grep') || command.startsWith('curl'))) {
+                // Special handling for grep and curl: treat no matches or any stderr as success with no output
+                result = {
+                    status: 'success',
+                    message: stdout || 'No output',
+                    error: null,  // no error
+                    fileName
+                };
+            } else {
+                // Default handling for all other commands
+                result = {
+                    status: stderr ? 'error' : 'success',
+                    message: stdout,
+                    error: stderr,  // include stderr as additional information
+                    fileName
+                };
+            }
 
             await writeFile(fileName, JSON.stringify(result), 'utf-8');
 
@@ -59,7 +69,6 @@ export class ExecutorAgent {
             const result = {
                 status: 'error',
                 message: error.stderr ? error.stderr : error.message,
-                code: error.code,  // include the error code
                 fileName
             };
 
@@ -68,6 +77,5 @@ export class ExecutorAgent {
             return result;
         }
     }
-
 }
 

@@ -28,9 +28,7 @@ export class ChatService {
         this.systemMessage = new SystemChatMessage(systemMessage)
         this.messages = [this.systemMessage]
     }
-    async decomposeTask(task: string): Promise<string[]> {
-        throw new Error('Method not implemented.');
-    }
+
     async addMessage(message: string): Promise<void> {
         this.messages.push(new HumanChatMessage(message))
     }
@@ -49,7 +47,6 @@ export class ChatService {
             return 'Error: Failed to send message';
         }
     }
-
 
     get modelName() {
         return this.chat.modelName
