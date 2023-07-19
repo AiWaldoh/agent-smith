@@ -73,69 +73,73 @@ export class BrainAgent extends EventEmitter {
         //set listener for event emitter
         this.watcherAgent.on('taskComplete', (taskResult) => this.handleTaskComplete(taskResult));
     }
-
     private async handleTaskComplete(taskResult: any) {
-
         let portNumber = parseInt(taskResult.port, 10);
-
-        //this happens once, at the beginning of app, when nmap is first run.
         if (taskResult.taskType === "nmap") {
-            // This is an nmap task
-            const nmapScanResults = JSON.parse(taskResult.summary);
+            await this.handleNmapTask(taskResult, portNumber);
+        } else {
+            await this.handlePortSpecificTask(taskResult, portNumber);
+        }
+    }
 
-            for (const result of nmapScanResults) {
-                let port = parseInt(result.port, 10);
-                if (result.state === "open") {
-                    //LAUNCH PORT SPECIFIC AGENTS
+    private async handlePortSpecificTask(taskResult: any, portNumber: number) {
+        //most of the time the app will be in this logic
+        //get existing agent for specific port
+        const portAgent = this.getPortAgent(portNumber);
 
-                    //create an Agent specific to a port
-                    const portAgent: BuddyAgent = this.createOrGetPortAgent(port);
+        //determine what task to run next
+        const nextSubtask = this.getNextSubtask(portNumber);
 
-                    //get 3 tasks for port from chatgpt
-                    const tasksAmount: number = 3;
-                    let tasks = await this.getTasksForPort(port, tasksAmount);
-                    // console.log(tasks);
-                    //save subtasks to map
-                    this.subtasksMap.set(port, tasks.map(taskObject => taskObject.task));
-                    // console.log(this.subtasksMap);
-                    //execute first sub task
-                    if (tasks.length > 0) {
-                        const firstTask = tasks[0].task;
 
-                        await this.dispatchTask(portAgent, firstTask, port);
+        if (nextSubtask) {
+            console.log('');
+            console.log(colors.magenta(`Executing next task: ${nextSubtask}`));
+            // Remove the task from the subtasksMap before dispatching it
+            let subtasks = this.subtasksMap.get(portNumber);
+            if (subtasks) {
+                subtasks = subtasks.filter(task => task !== nextSubtask);
+                this.subtasksMap.set(portNumber, subtasks);
+            }
+            // Now dispatch the task
+            await this.dispatchTask(portAgent, nextSubtask, portNumber);
 
-                        // Remove first task after dispatching
-                        let subtasks = this.subtasksMap.get(port);
-                        if (subtasks) {
-                            subtasks = subtasks.filter(task => task !== firstTask);
-                            this.subtasksMap.set(port, subtasks);
-                        }
+        } else {
+            console.log(`All subtasks for port ${portNumber} are complete.`);
+        }
+    }
+
+    private async handleNmapTask(taskResult: any, portNumber: number) {
+        // This is an nmap task
+        const nmapScanResults = JSON.parse(taskResult.summary);
+
+        for (const result of nmapScanResults) {
+            let port = parseInt(result.port, 10);
+            if (result.state === "open") {
+                //LAUNCH PORT SPECIFIC AGENTS
+
+                //create an Agent specific to a port
+                const portAgent: BuddyAgent = this.createOrGetPortAgent(port);
+
+                //get 3 tasks for port from chatgpt
+                const tasksAmount: number = 3;
+                let tasks = await this.getTasksForPort(port, tasksAmount);
+                // console.log(tasks);
+                //save subtasks to map
+                this.subtasksMap.set(port, tasks.map(taskObject => taskObject.task));
+                // console.log(this.subtasksMap);
+                //execute first sub task
+                if (tasks.length > 0) {
+                    const firstTask = tasks[0].task;
+
+                    await this.dispatchTask(portAgent, firstTask, port);
+
+                    // Remove first task after dispatching
+                    let subtasks = this.subtasksMap.get(port);
+                    if (subtasks) {
+                        subtasks = subtasks.filter(task => task !== firstTask);
+                        this.subtasksMap.set(port, subtasks);
                     }
                 }
-            }
-        } else {
-            //most of the time the app will be in this logic
-            //get existing agent for specific port
-            const portAgent = this.getPortAgent(portNumber);
-
-            //determine what task to run next
-            const nextSubtask = this.getNextSubtask(portNumber);
-
-
-            if (nextSubtask) {
-                console.log('');
-                console.log(colors.magenta(`Executing next task: ${nextSubtask}`));
-                // Remove the task from the subtasksMap before dispatching it
-                let subtasks = this.subtasksMap.get(portNumber);
-                if (subtasks) {
-                    subtasks = subtasks.filter(task => task !== nextSubtask);
-                    this.subtasksMap.set(portNumber, subtasks);
-                }
-                // Now dispatch the task
-                await this.dispatchTask(portAgent, nextSubtask, portNumber);
-
-            } else {
-                console.log(`All subtasks for port ${portNumber} are complete.`);
             }
         }
     }
